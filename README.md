@@ -62,11 +62,11 @@
 
 **自动半隐藏效果**
 
-<img src="image/自动半隐藏.gif" alt="自动半隐藏" width="800">
+<img src="image/Auto-semi-hide.gif" alt="自动半隐藏" width="800">
 
 **智能面板展开效果**
 
-<img src="image/智能展开面板.gif" alt="智能展开面板" width="800">
+<img src="image/Smart-Expand-Panel.gif" alt="智能展开面板" width="800">
 
 ### 右键菜单命令
 
