@@ -30,7 +30,7 @@
 ### 方式一：Greasy Fork（推荐）
 
 1. 安装 [Tampermonkey](https://www.tampermonkey.net/) 浏览器扩展
-2. 访问 [脚本主页](https://greasyfork.org/scripts/556352)
+2. 访问 [脚本主页](https://greasyfork.org/zh-CN/scripts/565845-github-downloader?locale_override=1)
 3. 点击"安装此脚本"按钮
 
 ### 方式二：手动安装
@@ -57,6 +57,16 @@
 | **边缘吸附** | 将按钮拖到屏幕左边缘或右边缘（≤ 20px 自动吸附） |
 | **自动半隐藏** | 按钮停靠到边缘后，延迟 400ms 自动隐藏 50%，悬停时立即展开 |
 | **智能面板定位** | 控制面板根据按钮位置自动选择最佳展开方向 |
+
+### 简单演示
+
+**自动半隐藏效果**
+
+<img src="image/自动半隐藏.gif" alt="自动半隐藏" width="800">
+
+**智能面板展开效果**
+
+<img src="image/智能展开面板.gif" alt="智能展开面板" width="800">
 
 ### 右键菜单命令
 
