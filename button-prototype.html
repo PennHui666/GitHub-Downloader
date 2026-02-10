@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub 下载器按钮原型 - 拖拽与停靠效果测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .info-panel {
+            position: fixed;
+            top: 80px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-width: 300px;
+            font-size: 12px;
+            z-index: 100;
+        }
+
+        .info-panel h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .info-panel .info-item {
+            margin: 8px 0;
+            color: #666;
+        }
+
+        .info-panel .info-value {
+            color: #0366d6;
+            font-weight: 600;
+        }
+
+        .controls {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-width: 300px;
+            font-size: 12px;
+            z-index: 100;
+        }
+
+        .controls h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .controls button {
+            display: block;
+            width: 100%;
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: #0366d6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        .controls button:hover {
+            background: #0256c7;
+        }
+
+        .controls button.danger {
+            background: #d73a49;
+        }
+
+        .controls button.danger:hover {
+            background: #cb2431;
+        }
+
+        /* 📦 按钮 */
+        .toggle-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #0366d6;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            z-index: 9999;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            
+            /* 使用 CSS 变量分离不同场景的样式 */
+            --hover-scale: 1;
+            transform: scale(var(--hover-scale));
+            
+            /* 只过渡颜色、阴影和 hover 缩放，不过渡位置 */
+            transition: 
+                background 0.3s ease,
+                box-shadow 0.3s ease,
+                --hover-scale 0.3s ease;
+            
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .toggle-btn:hover {
+            background: #0256c7;
+            --hover-scale: 1.1;  /* 只改变缩放变量 */
+            box-shadow: 0 4px 12px rgba(3, 102, 214, 0.3);
+        }
+
+        .toggle-btn.dragging {
+            cursor: grabbing;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            --hover-scale: 1.1;  /* 拖拽时保持放大 */
+            
+            /* 拖拽时禁用 transition，确保实时响应 */
+            transition: none;
+        }
+
+        .toggle-btn.docked {
+            /* 停靠时只过渡 transform */
+            transition: --hover-scale 0.2s ease;
+        }
+
+        /* 控制面板 */
+        .control-panel {
+            position: fixed;
+            background: white;
+            border: 2px solid #0366d6;
+            border-radius: 8px;
+            padding: 15px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            width: 300px;
+            max-height: 600px;
+            overflow-y: auto;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e1e4e8;
+        }
+
+        .panel-header .title {
+            font-weight: bold;
+            font-size: 14px;
+            color: #24292e;
+        }
+
+        .panel-header .close-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+        }
+
+        .panel-content {
+            font-size: 13px;
+            color: #24292e;
+        }
+
+        .panel-content p {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+
+        .panel-content ul {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .panel-content li {
+            margin: 4px 0;
+        }
+
+        /* 边缘指示器 */
+        .edge-indicator {
+            position: fixed;
+            background: rgba(255, 0, 0, 0.3);
+            border: 2px dashed #ff0000;
+            pointer-events: none;
+            z-index: 50;
+            display: none;
+        }
+
+        .edge-indicator.active {
+            display: block;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0.3;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        /* 测试区域 */
+        .test-area {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+        }
+
+        .test-area h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .test-area p {
+            font-size: 18px;
+            text-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 调试信息 */
+        .debug-info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #0f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+            z-index: 100;
+            max-width: 400px;
+        }
+
+        .debug-info .line {
+            margin: 2px 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部 -->
+    <div class="header">
+        <h1>📦 GitHub 下载器按钮原型</h1>
+        <p>拖拽、停靠、半隐藏效果测试 | 技术验证和概念证明工具</p>
+    </div>
+
+    <!-- 信息面板 -->
+    <div class="info-panel" id="infoPanel">
+        <h3>📊 实时状态</h3>
+        <div class="info-item">
+            按钮位置: <span class="info-value" id="btnPosition">x: 0, y: 0</span>
+        </div>
+        <div class="info-item">
+            停靠状态: <span class="info-value" id="dockedStatus">否</span>
+        </div>
+        <div class="info-item">
+            停靠边缘: <span class="info-value" id="edgeType">无</span>
+        </div>
+        <div class="info-item">
+            隐藏状态: <span class="info-value" id="hiddenStatus">否</span>
+        </div>
+        <div class="info-item">
+            面板方向: <span class="info-value" id="panelDirection">-</span>
+        </div>
+        <div class="info-item">
+            距离边缘: <span class="info-value" id="edgeDistance">-</span>
+        </div>
+    </div>
+
+    <!-- 控制面板 -->
+    <div class="controls" id="controls">
+        <h3>🎮 测试控制</h3>
+        <button onclick="resetButton()">🔄 重置按钮位置</button>
+        <button onclick="toggleAutoHide()">⏱️ 切换自动隐藏</button>
+        <button onclick="showCurrentState()">📊 查看当前状态</button>
+        <button onclick="exportState()">📤 导出状态</button>
+        <button onclick="importState()">📥 导入状态</button>
+        <button onclick="clearState()" class="danger">🗑️ 清除存储</button>
+        
+        <h3 style="margin-top: 20px;">📝 日志管理</h3>
+        <button onclick="copyLogs()">📋 复制日志</button>
+        <button onclick="downloadLogs()">💾 导出日志</button>
+    </div>
+
+    <!-- 测试区域 -->
+    <div class="test-area">
+        <h2>拖拽按钮到任意位置</h2>
+        <p>将按钮拖到窗口边缘测试停靠效果</p>
+        <p>距离边缘 ≤ 20px 时自动吸附</p>
+        <p>鼠标悬停在停靠按钮上展开</p>
+    </div>
+
+    <!-- 调试信息 -->
+    <div class="debug-info" id="debugInfo">
+        <div class="line">等待操作...</div>
+    </div>
+
+    <!-- 📦 按钮 -->
+    <button class="toggle-btn" id="toggleBtn" title="点击打开面板">📦</button>
+
+    <!-- 控制面板 -->
+    <div class="control-panel" id="controlPanel">
+        <div class="panel-header">
+            <div class="title">GitHub 下载器</div>
+            <button class="close-btn" onclick="togglePanel()">✕</button>
+        </div>
+        <div class="panel-content">
+            <p><strong>🎯 功能说明</strong></p>
+            <ul>
+                <li><strong>拖拽移动</strong>：按住按钮任意位置拖动</li>
+                <li><strong>边缘吸附</strong>：距离边缘 ≤ 20px 自动吸附</li>
+                <li><strong>半隐藏</strong>：停靠后延迟 400ms 隐藏 50%</li>
+                <li><strong>智能展开</strong>：鼠标悬停时立即完整显示</li>
+                <li><strong>面板跟随</strong>：面板智能选择展开方向</li>
+            </ul>
+            <p><strong>⚙️ 配置</strong></p>
+            <ul>
+                <li>吸附阈值：20px</li>
+                <li>隐藏延迟：400ms</li>
+                <li>隐藏比例：50%</li>
+                <li>停靠边缘：左、右</li>
+            </ul>
+            <p><strong>💡 提示</strong></p>
+            <p>尝试将按钮拖到左边缘或右边缘，观察吸附和半隐藏效果。点击按钮打开面板，观察智能展开方向。</p>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 配置 ====================
+        const CONFIG = {
+            // 吸附阈值（像素）
+            SNAP_THRESHOLD: 20,
+            
+            // 隐藏延迟（毫秒）
+            HIDE_DELAY: 400,
+            
+            // 动画时长（毫秒）
+            ANIMATION_DURATION: 200,
+            
+            // 隐藏比例（0-1）
+            HIDE_RATIO: 0.5,
+            
+            // 按钮尺寸
+            BUTTON_SIZE: 50,
+            
+            // 面板尺寸
+            PANEL_WIDTH: 300,
+            PANEL_HEIGHT: 400,
+            
+            // 面板与按钮的间距
+            PANEL_GAP: 10,
+            
+            // 支持的停靠边缘
+            SUPPORTED_EDGES: ['left', 'right']
+        };
+
+        // ==================== 状态管理 ====================
+        const state = {
+            // 按钮位置
+            x: null,
+            y: null,
+
+            // 停靠状态
+            docked: false,
+            edge: null,
+
+            // 隐藏状态
+            hidden: false,
+
+            // 拖拽状态
+            isDragging: false,
+            hasDragged: false,  // ← 新增：是否发生了有效拖拽位移
+            dragStartX: 0,
+            dragStartY: 0,
+            buttonStartX: 0,
+            buttonStartY: 0,
+
+            // 鼠标状态
+            isMouseOver: false,  // ← 新增：鼠标是否在按钮上
+
+            // 面板状态
+            panelOpen: false,
+
+            // 自动隐藏开关
+            autoHideEnabled: true,
+
+            // 计时器
+            hideTimer: null,
+
+            // 所有日志记录（用于导出）
+            allLogs: []
+        };        // ==================== DOM 元素 ====================
+        const toggleBtn = document.getElementById('toggleBtn');
+        const controlPanel = document.getElementById('controlPanel');
+        const debugInfo = document.getElementById('debugInfo');
+
+        // ==================== 初始化 ====================
+        function init() {
+            log('初始化原型...');
+            
+            // 加载保存的状态
+            loadState();
+            
+            // 应用状态
+            applyState();
+            
+            // 绑定事件
+            bindEvents();
+            
+            // 更新显示
+            updateDisplay();
+            
+            log('初始化完成');
+        }
+
+        // ==================== 事件绑定 ====================
+        function bindEvents() {
+            // 鼠标事件
+            toggleBtn.addEventListener('mousedown', onMouseDown);
+            toggleBtn.addEventListener('mouseup', onMouseUp);
+            toggleBtn.addEventListener('mouseenter', onMouseEnter);
+            toggleBtn.addEventListener('mouseleave', onMouseLeave);
+            
+            // 触摸事件
+            toggleBtn.addEventListener('touchstart', onTouchStart, { passive: false });
+            toggleBtn.addEventListener('touchmove', onTouchMove, { passive: false });
+            toggleBtn.addEventListener('touchend', onTouchEnd);
+            
+            // 全局事件
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            document.addEventListener('touchmove', onTouchMove, { passive: false });
+            document.addEventListener('touchend', onTouchEnd);
+            
+            // 窗口大小变化
+            window.addEventListener('resize', onWindowResize);
+            
+            // 按钮点击
+            toggleBtn.addEventListener('click', onButtonClick);
+        }
+
+        // ==================== 拖拽处理 ====================
+        // 拖拽判定阈值（像素）：超过此值认为是拖拽，否则是点击
+        const DRAG_THRESHOLD = 3;
+
+        function onMouseDown(e) {
+            if (e.button !== 0) return; // 只响应左键
+
+            state.isDragging = true;
+            state.hasDragged = false;  // ← 重置拖拽标志
+            state.dragStartX = e.clientX;
+            state.dragStartY = e.clientY;
+            state.buttonStartX = toggleBtn.offsetLeft;
+            state.buttonStartY = toggleBtn.offsetTop;
+
+            toggleBtn.classList.add('dragging');
+
+            // 仅当按钮未停靠且面板未打开时才清除停靠状态
+            // 停靠状态下点击按钮是为了打开/关闭面板，不应清除停靠
+            if (!state.docked && !state.panelOpen) {
+                clearDocked();
+            }
+
+            // 如果面板打开，实时更新面板位置
+            if (state.panelOpen) {
+                updatePanelPosition();
+            }
+
+            log('开始拖拽/点击检测');
+        }
+
+        function onMouseMove(e) {
+            if (!state.isDragging) return;
+
+            e.preventDefault();
+
+            // 计算位移
+            const deltaX = e.clientX - state.dragStartX;
+            const deltaY = e.clientY - state.dragStartY;
+
+            // ← 检测是否发生了有效拖拽（超过阈值）
+            if (!state.hasDragged) {
+                const absDeltaX = Math.abs(deltaX);
+                const absDeltaY = Math.abs(deltaY);
+                if (absDeltaX > DRAG_THRESHOLD || absDeltaY > DRAG_THRESHOLD) {
+                    state.hasDragged = true;
+                    log(`检测到有效拖拽: ΔX=${absDeltaX.toFixed(1)}px, ΔY=${absDeltaY.toFixed(1)}px`);
+                }
+            }
+
+            // 计算新位置
+            let newX = state.buttonStartX + deltaX;
+            let newY = state.buttonStartY + deltaY;
+
+            // 限制在可视区域内
+            const clamped = clampPosition(newX, newY);
+
+            // 使用 left/top 定位，不使用 transform
+            toggleBtn.style.left = `${clamped.x}px`;
+            toggleBtn.style.top = `${clamped.y}px`;
+            toggleBtn.style.right = 'auto';
+            toggleBtn.style.bottom = 'auto';
+
+            // 更新状态
+            state.x = clamped.x;
+            state.y = clamped.y;
+
+            // 检测边缘吸附
+            checkEdgeSnap(clamped.x, clamped.y);
+
+            // 如果面板打开，实时更新面板位置
+            if (state.panelOpen) {
+                updatePanelPosition();
+            }
+
+            updateDisplay();
+        }
+
+        function onMouseUp(e) {
+            if (!state.isDragging) return;
+
+            state.isDragging = false;
+            toggleBtn.classList.remove('dragging');
+
+            // 确认边缘吸附
+            if (state.edge) {
+                log(`🎯 拖拽结束，检测到停靠边缘: ${state.edge}`);
+                applyDocked(state.edge);
+            } else {
+                log('📍 拖拽结束，未检测到停靠边缘');
+            }
+
+            // 保存状态
+            saveState();
+
+            // ← 延迟重置 hasDragged，确保 click 事件能读取到该值
+            setTimeout(() => {
+                state.hasDragged = false;
+            }, 0);
+
+            log(`✅ 拖拽/点击结束 (是否拖拽: ${state.hasDragged})`);
+        }
+
+        // ==================== 触摸事件处理 ====================
+        function onTouchStart(e) {
+            if (e.touches.length !== 1) return;
+
+            e.preventDefault();
+
+            const touch = e.touches[0];
+            state.isDragging = true;
+            state.hasDragged = false;  // ← 重置拖拽标志
+            state.dragStartX = touch.clientX;
+            state.dragStartY = touch.clientY;
+            state.buttonStartX = toggleBtn.offsetLeft;
+            state.buttonStartY = toggleBtn.offsetTop;
+
+            toggleBtn.classList.add('dragging');
+
+            clearDocked();
+
+            if (state.panelOpen) {
+                updatePanelPosition();
+            }
+
+            log('触摸开始拖拽/点击检测');
+        }
+
+        function onTouchMove(e) {
+            if (!state.isDragging || e.touches.length !== 1) return;
+
+            e.preventDefault();
+
+            const touch = e.touches[0];
+
+            // 计算位移
+            const deltaX = touch.clientX - state.dragStartX;
+            const deltaY = touch.clientY - state.dragStartY;
+
+            // ← 检测是否发生了有效拖拽
+            if (!state.hasDragged) {
+                const absDeltaX = Math.abs(deltaX);
+                const absDeltaY = Math.abs(deltaY);
+                if (absDeltaX > DRAG_THRESHOLD || absDeltaY > DRAG_THRESHOLD) {
+                    state.hasDragged = true;
+                }
+            }
+
+            let newX = state.buttonStartX + deltaX;
+            let newY = state.buttonStartY + deltaY;
+
+            const clamped = clampPosition(newX, newY);
+
+            toggleBtn.style.left = `${clamped.x}px`;
+            toggleBtn.style.top = `${clamped.y}px`;
+            toggleBtn.style.right = 'auto';
+            toggleBtn.style.bottom = 'auto';
+
+            state.x = clamped.x;
+            state.y = clamped.y;
+
+            checkEdgeSnap(clamped.x, clamped.y);
+
+            if (state.panelOpen) {
+                updatePanelPosition();
+            }
+
+            updateDisplay();
+        }
+
+        function onTouchEnd(e) {
+            if (!state.isDragging) return;
+
+            state.isDragging = false;
+            toggleBtn.classList.remove('dragging');
+
+            if (state.edge) {
+                applyDocked(state.edge);
+            }
+
+            saveState();
+
+            // ← 延迟重置 hasDragged
+            setTimeout(() => {
+                state.hasDragged = false;
+            }, 0);
+
+            log(`触摸结束 (是否拖拽: ${state.hasDragged})`);
+        }
+
+        // ==================== 边缘吸附 ====================
+        function checkEdgeSnap(x, y) {
+            const viewport = getViewport();
+            
+            // 计算距离各边缘的距离
+            const distances = {
+                left: x,
+                right: viewport.width - x - CONFIG.BUTTON_SIZE,
+                top: y,
+                bottom: viewport.height - y - CONFIG.BUTTON_SIZE
+            };
+            
+            // 检查是否在吸附阈值内
+            let snappedEdge = null;
+            
+            for (const edge of CONFIG.SUPPORTED_EDGES) {
+                if (distances[edge] <= CONFIG.SNAP_THRESHOLD) {
+                    snappedEdge = edge;
+                    break;
+                }
+            }
+            
+            // 更新状态
+            state.edge = snappedEdge;
+            
+            // 如果检测到边缘，显示视觉反馈
+            if (snappedEdge) {
+                log(`检测到边缘: ${snappedEdge} (距离: ${distances[snappedEdge].toFixed(1)}px)`);
+            }
+            
+            return snappedEdge;
+        }
+
+        function applyDocked(edge) {
+            state.docked = true;
+            state.edge = edge;
+            
+            toggleBtn.classList.add('docked');
+            
+            // 应用停靠位置
+            switch (edge) {
+                case 'left':
+                    toggleBtn.style.left = '0';
+                    toggleBtn.style.top = `${state.y}px`;
+                    toggleBtn.style.right = 'auto';
+                    toggleBtn.style.bottom = 'auto';
+                    break;
+                case 'right':
+                    toggleBtn.style.right = '0';
+                    toggleBtn.style.top = `${state.y}px`;
+                    toggleBtn.style.left = 'auto';
+                    toggleBtn.style.bottom = 'auto';
+                    break;
+            }
+            
+            // 延迟启动自动隐藏，确保鼠标离开按钮后才开始计时
+            // 这样可以避免拖拽时鼠标仍在按钮上导致计时器被取消
+            if (state.autoHideEnabled) {
+                // 先取消现有的计时器
+                cancelHide();
+                
+                // 延迟 100ms 后启动隐藏计时器
+                // 这给鼠标事件处理一些时间，确保状态稳定
+                setTimeout(() => {
+                    if (state.docked && !state.panelOpen) {
+                        scheduleHide();
+                    }
+                }, 100);
+            }
+            
+            log(`停靠到: ${edge}`);
+            updateDisplay();
+        }
+
+        function clearDocked() {
+            state.docked = false;
+            state.edge = null;
+            state.hidden = false;
+            
+            toggleBtn.classList.remove('docked');
+            toggleBtn.style.transform = 'translateX(0) translateY(0)';
+            
+            cancelHide();
+            
+            log('清除停靠状态');
+            updateDisplay();
+        }
+
+        // ==================== 半隐藏效果 ====================
+        function scheduleHide() {
+            if (!state.autoHideEnabled) {
+                log('自动隐藏已禁用，跳过安排隐藏');
+                return;
+            }
+            
+            if (!state.docked) {
+                log('按钮未停靠，跳过安排隐藏');
+                return;
+            }
+            
+            if (state.panelOpen) {
+                log('面板已打开，跳过安排隐藏');
+                return;
+            }
+            
+            cancelHide();
+            
+            state.hideTimer = setTimeout(() => {
+                hideButton();
+            }, CONFIG.HIDE_DELAY);
+            
+            log(`✅ 安排隐藏 (${CONFIG.HIDE_DELAY}ms 后) - 停靠边缘: ${state.edge}`);
+        }
+
+        function cancelHide() {
+            if (state.hideTimer) {
+                clearTimeout(state.hideTimer);
+                state.hideTimer = null;
+                log('取消隐藏');
+            }
+        }
+
+        function hideButton() {
+            if (state.hidden || !state.docked) return;
+            
+            state.hidden = true;
+            
+            toggleBtn.style.transition = `transform ${CONFIG.ANIMATION_DURATION}ms ease`;
+            
+            switch (state.edge) {
+                case 'left':
+                    toggleBtn.style.transform = `translateX(-${CONFIG.BUTTON_SIZE * CONFIG.HIDE_RATIO}px)`;
+                    break;
+                case 'right':
+                    toggleBtn.style.transform = `translateX(${CONFIG.BUTTON_SIZE * CONFIG.HIDE_RATIO}px)`;
+                    break;
+            }
+            
+            log('按钮已隐藏');
+            updateDisplay();
+        }
+
+        function showButton() {
+            if (!state.hidden) return;
+            
+            state.hidden = false;
+            
+            toggleBtn.style.transform = 'translateX(0) translateY(0)';
+            
+            log('按钮已展开');
+            updateDisplay();
+        }
+
+        // ==================== 鼠标悬停处理 ====================
+        function onMouseEnter() {
+            state.isMouseOver = true;  // ← 记录鼠标状态
+
+            if (!state.docked) {
+                log('鼠标进入：按钮未停靠，忽略');
+                return;
+            }
+
+            log(`🖱️ 鼠标进入停靠按钮 (边缘: ${state.edge}, 隐藏状态: ${state.hidden})`);
+
+            // 取消隐藏计时器
+            cancelHide();
+
+            // 立即展开
+            showButton();
+        }
+
+        function onMouseLeave() {
+            state.isMouseOver = false;  // ← 记录鼠标状态
+
+            if (!state.docked) {
+                log('鼠标离开：按钮未停靠，忽略');
+                return;
+            }
+
+            log(`🖱️ 鼠标离开停靠按钮 (边缘: ${state.edge}, 面板打开: ${state.panelOpen})`);
+
+            // 如果面板打开，不隐藏
+            if (state.panelOpen) {
+                log('面板已打开，不安排隐藏');
+                return;
+            }
+
+            // 重新安排隐藏
+            if (state.autoHideEnabled) {
+                scheduleHide();
+            }
+        }
+
+        // ==================== 面板控制 ====================
+        function onButtonClick(e) {
+            // ← 使用位移检测法：如果发生了有效拖拽，不打开面板
+            if (state.hasDragged) {
+                e.preventDefault();
+                e.stopPropagation();
+                log('🖱️ 点击事件：发生了拖拽，忽略');
+                return;
+            }
+
+            // 有效点击：切换面板状态
+            log('🖱️ 点击事件：有效点击，切换面板状态');
+            togglePanel();
+        }
+
+        function togglePanel() {
+            if (state.panelOpen) {
+                closePanel();
+            } else {
+                openPanel();
+            }
+        }
+
+        function openPanel() {
+            state.panelOpen = true;
+            controlPanel.style.display = 'block';
+            
+            // 取消隐藏
+            cancelHide();
+            showButton();
+            
+            // 计算并应用面板位置
+            updatePanelPosition();
+            
+            log('打开面板');
+            updateDisplay();
+        }
+
+        function closePanel() {
+            state.panelOpen = false;
+            controlPanel.style.display = 'none';
+
+            // 如果停靠且自动隐藏启用，且鼠标不在按钮上，才安排隐藏
+            // 如果鼠标在按钮上，让 onMouseLeave 处理隐藏
+            if (state.docked && state.autoHideEnabled && !state.isMouseOver) {
+                scheduleHide();
+                log('关闭面板：鼠标不在按钮上，立即安排隐藏');
+            } else if (state.docked && state.autoHideEnabled && state.isMouseOver) {
+                log('关闭面板：鼠标在按钮上，等待 mouseleave 时隐藏');
+            }
+
+            log('关闭面板');
+            updateDisplay();
+        }
+
+        function updatePanelPosition() {
+            if (!state.panelOpen) return;
+            
+            const direction = calculatePanelDirection();
+            
+            let panelLeft, panelTop;
+            
+            // 获取按钮位置
+            const btnRect = toggleBtn.getBoundingClientRect();
+            
+            // 根据方向计算面板位置
+            switch (direction) {
+                case 'up-left':
+                    panelLeft = btnRect.left - CONFIG.PANEL_WIDTH - CONFIG.PANEL_GAP;
+                    panelTop = btnRect.top - CONFIG.PANEL_HEIGHT - CONFIG.PANEL_GAP;
+                    break;
+                case 'up-right':
+                    panelLeft = btnRect.right + CONFIG.PANEL_GAP;
+                    panelTop = btnRect.top - CONFIG.PANEL_HEIGHT - CONFIG.PANEL_GAP;
+                    break;
+                case 'down-left':
+                    panelLeft = btnRect.left - CONFIG.PANEL_WIDTH - CONFIG.PANEL_GAP;
+                    panelTop = btnRect.bottom + CONFIG.PANEL_GAP;
+                    break;
+                case 'down-right':
+                    panelLeft = btnRect.right + CONFIG.PANEL_GAP;
+                    panelTop = btnRect.bottom + CONFIG.PANEL_GAP;
+                    break;
+                default:
+                    // 默认：按钮左侧
+                    panelLeft = btnRect.left - CONFIG.PANEL_WIDTH - CONFIG.PANEL_GAP;
+                    panelTop = btnRect.top;
+            }
+            
+            // 限制在可视区域内
+            const clamped = clampPanelPosition(panelLeft, panelTop);
+            
+            controlPanel.style.left = `${clamped.x}px`;
+            controlPanel.style.top = `${clamped.y}px`;
+            controlPanel.style.right = 'auto';
+            controlPanel.style.bottom = 'auto';
+            
+            state.panelDirection = direction;
+            
+            log(`面板方向: ${direction}`);
+            updateDisplay();
+        }
+
+        function calculatePanelDirection() {
+            const btnRect = toggleBtn.getBoundingClientRect();
+            const viewport = getViewport();
+            
+            // 按钮中心点
+            const centerX = btnRect.left + btnRect.width / 2;
+            const centerY = btnRect.top + btnRect.height / 2;
+            
+            // 视口中心点
+            const viewCenterX = viewport.width / 2;
+            const viewCenterY = viewport.height / 2;
+            
+            // 判断象限
+            const inLeftHalf = centerX < viewCenterX;
+            const inTopHalf = centerY < viewCenterY;
+            
+            // 计算可用空间
+            const space = {
+                left: btnRect.left,
+                right: viewport.width - btnRect.right,
+                top: btnRect.top,
+                bottom: viewport.height - btnRect.bottom
+            };
+            
+            // 水平方向选择
+            let horizontal;
+            if (inLeftHalf) {
+                horizontal = space.right >= CONFIG.PANEL_WIDTH ? 'right' : 'left';
+            } else {
+                horizontal = space.left >= CONFIG.PANEL_WIDTH ? 'left' : 'right';
+            }
+            
+            // 垂直方向选择
+            let vertical;
+            if (inTopHalf) {
+                vertical = space.bottom >= CONFIG.PANEL_HEIGHT ? 'down' : 'up';
+            } else {
+                vertical = space.top >= CONFIG.PANEL_HEIGHT ? 'up' : 'down';
+            }
+            
+            return `${vertical}-${horizontal}`;
+        }
+
+        // ==================== 位置限制 ====================
+        function clampPosition(x, y) {
+            const viewport = getViewport();
+            
+            return {
+                x: Math.max(0, Math.min(x, viewport.width - CONFIG.BUTTON_SIZE)),
+                y: Math.max(0, Math.min(y, viewport.height - CONFIG.BUTTON_SIZE))
+            };
+        }
+
+        function clampPanelPosition(x, y) {
+            const viewport = getViewport();
+            
+            return {
+                x: Math.max(0, Math.min(x, viewport.width - CONFIG.PANEL_WIDTH)),
+                y: Math.max(0, Math.min(y, viewport.height - CONFIG.PANEL_HEIGHT))
+            };
+        }
+
+        function getViewport() {
+            return {
+                width: window.innerWidth,
+                height: window.innerHeight
+            };
+        }
+
+        // ==================== 窗口大小变化 ====================
+        function onWindowResize() {
+            log('窗口大小变化');
+            
+            // 检查按钮是否在可视区域内
+            const btnRect = toggleBtn.getBoundingClientRect();
+            const viewport = getViewport();
+            
+            if (
+                btnRect.left < 0 ||
+                btnRect.right > viewport.width ||
+                btnRect.top < 0 ||
+                btnRect.bottom > viewport.height
+            ) {
+                // 按钮超出边界，重置到默认位置
+                log('按钮超出可视区域，重置到默认位置');
+                resetButton();
+            }
+            
+            // 更新面板位置
+            if (state.panelOpen) {
+                updatePanelPosition();
+            }
+            
+            updateDisplay();
+        }
+
+        // ==================== 状态管理 ====================
+        function saveState() {
+            const stateToSave = {
+                x: state.x,
+                y: state.y,
+                docked: state.docked,
+                edge: state.edge,
+                autoHideEnabled: state.autoHideEnabled
+            };
+            
+            localStorage.setItem('buttonState', JSON.stringify(stateToSave));
+            log('状态已保存');
+        }
+
+        function loadState() {
+            try {
+                const savedState = localStorage.getItem('buttonState');
+                if (savedState) {
+                    const parsed = JSON.parse(savedState);
+                    Object.assign(state, parsed);
+                    log('状态已加载');
+                }
+            } catch (err) {
+                log('加载状态失败: ' + err.message);
+            }
+        }
+
+        function applyState() {
+            // 应用位置
+            if (state.x !== null && state.y !== null) {
+                toggleBtn.style.left = `${state.x}px`;
+                toggleBtn.style.top = `${state.y}px`;
+                toggleBtn.style.right = 'auto';
+                toggleBtn.style.bottom = 'auto';
+            }
+            
+            // 应用停靠状态
+            if (state.docked && state.edge) {
+                applyDocked(state.edge);
+            }
+            
+            log('状态已应用');
+        }
+
+        // ==================== 控制函数 ====================
+        function resetButton() {
+            clearState();
+            
+            state.x = null;
+            state.y = null;
+            state.docked = false;
+            state.edge = null;
+            state.hidden = false;
+            
+            toggleBtn.style.left = 'auto';
+            toggleBtn.style.top = 'auto';
+            toggleBtn.style.right = '20px';
+            toggleBtn.style.bottom = '30px';
+            toggleBtn.style.transform = 'translateX(0) translateY(0)';
+            
+            closePanel();
+            
+            log('按钮已重置');
+            updateDisplay();
+        }
+
+        function toggleAutoHide() {
+            state.autoHideEnabled = !state.autoHideEnabled;
+            
+            if (state.autoHideEnabled) {
+                alert('✅ 自动隐藏已启用');
+                if (state.docked) {
+                    scheduleHide();
+                }
+            } else {
+                alert('❌ 自动隐藏已禁用');
+                cancelHide();
+                showButton();
+            }
+            
+            log(`自动隐藏: ${state.autoHideEnabled ? '启用' : '禁用'}`);
+            updateDisplay();
+        }
+
+        function showCurrentState() {
+            const info = `
+📊 当前按钮状态
+═══════════════════════════════════
+
+位置:
+  X: ${state.x !== null ? state.x + 'px' : '未设置'}
+  Y: ${state.y !== null ? state.y + 'px' : '未设置'}
+
+停靠:
+  是否停靠: ${state.docked ? '是' : '否'}
+  停靠边缘: ${state.edge || '无'}
+  是否隐藏: ${state.hidden ? '是' : '否'}
+
+面板:
+  是否打开: ${state.panelOpen ? '是' : '否'}
+  展开方向: ${state.panelDirection || '-'}
+
+配置:
+  自动隐藏: ${state.autoHideEnabled ? '启用' : '禁用'}
+
+═══════════════════════════════════
+            `.trim();
+            
+            alert(info);
+        }
+
+        function exportState() {
+            const stateToExport = {
+                x: state.x,
+                y: state.y,
+                docked: state.docked,
+                edge: state.edge,
+                autoHideEnabled: state.autoHideEnabled
+            };
+            
+            const json = JSON.stringify(stateToExport, null, 2);
+            
+            // 复制到剪贴板
+            navigator.clipboard.writeText(json).then(() => {
+                alert('✅ 状态已复制到剪贴板！\n\n' + json);
+            }).catch(err => {
+                alert('❌ 复制失败，请手动复制以下内容：\n\n' + json);
+            });
+        }
+
+        function importState() {
+            const json = prompt('请粘贴状态 JSON：');
+            
+            if (!json) {
+                log('用户取消了导入操作');
+                return;
+            }
+            
+            try {
+                const importedState = JSON.parse(json);
+                
+                // 验证
+                if (!validateState(importedState)) {
+                    throw new Error('状态格式不正确');
+                }
+                
+                // 应用
+                Object.assign(state, importedState);
+                applyState();
+                saveState();
+                
+                alert('✅ 状态已导入！');
+                log('状态已导入');
+            } catch (err) {
+                alert('❌ 导入失败：\n\n' + err.message);
+            }
+        }
+
+        function clearState() {
+            localStorage.removeItem('buttonState');
+            log('存储已清除');
+        }
+
+        function validateState(s) {
+            return typeof s === 'object' && s !== null;
+        }
+
+        // ==================== 日志导出 ====================
+        function getLogsText() {
+            // 从 allLogs 数组获取所有日志记录
+            return state.allLogs.join('\n');
+        }
+
+        function copyLogs() {
+            const logs = getLogsText();
+
+            if (logs.trim() === '') {
+                alert('❌ 没有日志可复制');
+                return;
+            }
+
+            navigator.clipboard.writeText(logs).then(() => {
+                alert('✅ 日志已复制到剪贴板！');
+                log('日志已复制到剪贴板');
+            }).catch(err => {
+                alert('❌ 复制失败：' + err.message);
+            });
+        }
+
+        function downloadLogs() {
+            const logs = getLogsText();
+
+            if (logs.trim() === '') {
+                alert('❌ 没有日志可导出');
+                return;
+            }
+
+            try {
+                const blob = new Blob([logs], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `button-prototype-logs-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+                log('日志已导出为文件');
+            } catch (err) {
+                alert('❌ 导出失败：' + err.message);
+            }
+        }
+
+        // ==================== 显示更新 ====================
+        function updateDisplay() {
+            // 更新信息面板
+            document.getElementById('btnPosition').textContent = 
+                `x: ${state.x !== null ? state.x : '-'}, y: ${state.y !== null ? state.y : '-'}`;
+            
+            document.getElementById('dockedStatus').textContent = 
+                state.docked ? '是' : '否';
+            
+            document.getElementById('edgeType').textContent = 
+                state.edge || '无';
+            
+            document.getElementById('hiddenStatus').textContent = 
+                state.hidden ? '是' : '否';
+            
+            document.getElementById('panelDirection').textContent = 
+                state.panelDirection || '-';
+            
+            // 计算距离边缘的距离
+            if (state.docked && state.edge) {
+                document.getElementById('edgeDistance').textContent = '0px (已停靠)';
+            } else {
+                const btnRect = toggleBtn.getBoundingClientRect();
+                const viewport = getViewport();
+                const minDist = Math.min(
+                    btnRect.left,
+                    viewport.width - btnRect.right,
+                    btnRect.top,
+                    viewport.height - btnRect.bottom
+                );
+                document.getElementById('edgeDistance').textContent = 
+                    `${minDist.toFixed(1)}px`;
+            }
+        }
+
+        // ==================== 日志 ====================
+        function log(message) {
+                    const time = new Date().toLocaleTimeString();
+                    const logText = `[${time}] ${message}`;
+        
+                    // 保存到完整日志数组
+                    state.allLogs.push(logText);
+        
+                    // 添加到页面显示
+                    const line = document.createElement('div');
+                    line.className = 'line';
+                    line.textContent = logText;
+                    debugInfo.appendChild(line);
+        
+                    // 限制页面显示的日志数量（只显示最后 10 条）
+                    while (debugInfo.children.length > 10) {
+                        debugInfo.removeChild(debugInfo.firstChild);
+                    }
+        
+                    console.log(`[原型] ${message}`);
+                }
+        // ==================== 启动 ====================
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
